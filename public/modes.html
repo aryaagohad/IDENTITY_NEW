@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>IDENTITY — Modes</title>
+
+  <style>
+    :root{
+      --bg:#0A0B0C;
+      --panel:#F6F7F8;
+      --muted:#A3A8AE;
+      --accent:#ff5c57;
+      --accent-soft:#ffb84d;
+      --tile-bg:rgba(255,255,255,0.02);
+      --mono:ui-monospace,"SFMono-Regular",Menlo,Monaco,"Roboto Mono",monospace;
+      --radius:12px;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      background:var(--bg);
+      color:var(--panel);
+      font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+    }
+    .wrap{max-width:1100px;margin:28px auto;padding:18px;}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px}
+    .brand{
+      font-family:var(--mono);
+      letter-spacing:0.14em;
+      font-weight:700;
+      font-size:12px;
+      color:var(--muted);
+      display:flex;
+      align-items:center;
+      gap:10px
+    }
+    .brand .dot{width:9px;height:9px;border-radius:2px;background:var(--accent);}
+    h1{
+      font-family:var(--mono);
+      margin:0;
+      font-weight:600;
+      letter-spacing:0.06em;
+      font-size:20px
+    }
+    p.lead{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      max-width:680px
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:14px;
+      margin-top:18px
+    }
+    @media (max-width:880px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:560px){.grid{grid-template-columns:1fr}}
+
+    .tile{
+      background:var(--tile-bg);
+      border:1px solid rgba(255,255,255,0.03);
+      border-radius:var(--radius);
+      padding:14px;
+      min-height:200px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      transition:transform .18s ease, box-shadow .18s ease;
+      position:relative;
+      overflow:hidden;
+    }
+    .tile:hover{
+      transform:translateY(-6px);
+      box-shadow:0 18px 40px rgba(0,0,0,0.45);
+      cursor:pointer;
+    }
+
+    .tile-top{display:flex;justify-content:space-between;align-items:center;}
+    .title{
+      font-family:var(--mono);
+      font-size:13px;
+      letter-spacing:0.1em;
+      color:var(--muted);
+      font-weight:700
+    }
+    .tag{display: inline-flex;
+  align-items:center;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,0.14);
+  background:rgba(255,255,255,0.04);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:0.12em;
+  color:var(--muted);
+  font-family:var(--mono);}
+    .tile-mid{display:flex;align-items:center;justify-content:center;height:108px;margin-top:10px;}
+    .tile-screen{
+      width:84%;
+      height:92px;
+      border-radius:8px;
+      background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid rgba(255,255,255,0.02)
+    }
+    .screen-glyph{width:60px;height:60px;display:block;opacity:0.98;}
+
+    .tile-bottom{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-top:10px
+    }
+    .desc{
+      font-size:13px;
+      color:var(--muted);
+      line-height:1;
+      max-width:60%
+    }
+    .cta{
+      font-family:var(--mono);
+      font-size:12px;
+      letter-spacing:0.08em;
+      color:var(--bg);
+      background:var(--accent);
+      padding:8px 12px;
+      border-radius:8px;
+      font-weight:700;
+      display:inline-block
+    }
+    .meta{font-family:var(--mono);font-size:11px;color:var(--muted);}
+
+    .strip{
+      display:none;
+    }
+    .hint{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:13px;
+      font-family:var(--mono)
+    }
+    a.mode-link{text-decoration:none;color:inherit;display:block;height:100%;}
+
+    /* -------------------------------------
+       STORY OVERLAY (TE-ish but distinct)
+    --------------------------------------*/
+    .story-overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.70);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:999;
+    }
+    .story-panel{
+      width:100%;
+      max-width:640px;
+      margin:16px;
+      background:#101216;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,0.10);
+      box-shadow:0 22px 60px rgba(0,0,0,0.65);
+      padding:18px 18px 16px;
+      font-family:Inter, system-ui, -apple-system;
+      position:relative;
+    }
+    .story-label{
+      font-family:var(--mono);
+      font-size:11px;
+      letter-spacing:0.14em;
+      color:var(--muted);
+      margin-bottom:6px;
+      text-transform:uppercase;
+    }
+    .story-title{
+      font-family:var(--mono);
+      font-size:16px;
+      letter-spacing:0.10em;
+      margin:0 0 10px;
+      color:var(--panel);
+    }
+    .story-body{
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.55;
+      margin-bottom:10px;
+    }
+    .story-section-title{
+      font-family:var(--mono);
+      font-size:11px;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      color:var(--panel);
+      margin-top:10px;
+      margin-bottom:4px;
+    }
+    .story-list{
+      margin:0;
+      padding-left:16px;
+      font-size:13px;
+      color:var(--muted);
+    }
+    .story-list li{
+      margin-bottom:4px;
+    }
+    .story-footer{
+      margin-top:12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+      font-size:11px;
+      color:var(--muted);
+      font-family:var(--mono);
+    }
+    .story-btn{
+      padding:8px 12px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,0.18);
+      background:rgba(255,255,255,0.04);
+      color:var(--panel);
+      font-size:11px;
+      letter-spacing:0.10em;
+      text-transform:uppercase;
+      font-family:var(--mono);
+      cursor:pointer;
+    }
+    .story-btn.primary{
+      border:none;
+      background:var(--accent);
+      color:#0A0B0C;
+      font-weight:700;
+    }
+    .story-close-x{
+      position:absolute;
+      top:10px;
+      right:12px;
+      font-family:var(--mono);
+      font-size:14px;
+      color:var(--muted);
+      cursor:pointer;
+      opacity:0.9;
+    }
+    .story-close-x:hover{
+      opacity:1;
+    }
+  </style>
+</head>
+
+<body>
+  <script src="/socket.io/socket.io.js"></script>
+
+  <div class="wrap">
+
+    <header>
+      <div>
+        <div class="brand"><span class="dot"></span> IDENTITY · MODES</div>
+        <h1>choose how you’ll be read</h1>
+        <p class="lead">
+          Each mode reenacts a way systems handle identity. Try one. Start anywhere.
+          Notice what changes, and what refuses to.
+        </p>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--muted);">SESSION</div>
+        <div style="font-family:var(--mono);font-size:13px;color:var(--panel);font-weight:700">EXHIBIT 01</div>
+      </div>
+    </header>
+
+    <div class="grid" role="list">
+
+      <!-- ⭐ RELATIONAL ⭐ -->
+      <div class="tile" role="listitem">
+        <a class="mode-link" href="/controller-relational.html">
+          <div class="strip"></div>
+          <div class="tile-top">
+            <div class="title">RELATIONAL</div>
+            <div class="tag">gaze</div>
+          </div>
+          <div class="tile-mid">
+            <div class="tile-screen">
+              <svg class="screen-glyph" viewBox="0 0 64 64">
+                <g fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="32" cy="32" r="12"/>
+                  <path d="M32 6v6M32 52v6M6 32h6M52 32h6"/>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <div class="tile-bottom">
+            <div class="desc">Your face and gaze pulls your glyph into and out of other people’s orbit.</div>
+            <div class="meta">01</div>
+            <div><span class="cta">OPEN</span></div>
+          </div>
+        </a>
+      </div>
+
+      <!-- ⭐ TRANSITORY ⭐ -->
+      <div class="tile">
+        <a class="mode-link" href="/controller-transitory.html">
+          <div class="strip" style="opacity:.09;background:linear-gradient(180deg,var(--accent-soft),#ffd166)"></div>
+          <div class="tile-top">
+            <div class="title">TRANSITORY</div>
+            <div class="tag">motion</div>
+          </div>
+          <div class="tile-mid">
+            <div class="tile-screen">
+              <svg class="screen-glyph" viewBox="0 0 64 64">
+                <g stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M8 36c8-10 16-14 24-14s16 4 24 14"/>
+                  <circle cx="30" cy="26" r="2" fill="currentColor"/>
+                  <circle cx="42" cy="34" r="2" fill="currentColor"/>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <div class="tile-bottom">
+            <div class="desc">Your identity mirrors your movement. Motion tracking enables meeting other identities.</div>
+            <div class="meta">02</div>
+            <div><span class="cta">OPEN</span></div>
+          </div>
+        </a>
+      </div>
+
+      <!-- ⭐ INTEROPERABLE ⭐ -->
+      <div class="tile">
+        <a class="mode-link" href="/controller-interoperable.html">
+          <div class="strip" style="opacity:.09;background:linear-gradient(180deg,#6bd3ff,var(--accent-soft))"></div>
+          <div class="tile-top">
+            <div class="title">INTEROPERABLE</div>
+            <div class="tag">audio</div>
+          </div>
+          <div class="tile-mid">
+            <div class="tile-screen">
+              <svg class="screen-glyph" viewBox="0 0 64 64">
+                <g stroke="currentColor" stroke-width="1.8" fill="none">
+                  <path d="M20 44v-8c0-6 6-8 12-8s12 2 12 8v8"/>
+                  <circle cx="32" cy="32" r="2" fill="currentColor"/>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <div class="tile-bottom">
+            <div class="desc">Your voice trains the system to listen.</div>
+            <div class="meta">03</div>
+            <div><span class="cta">OPEN</span></div>
+          </div>
+        </a>
+      </div>
+
+      <!-- ⭐ MULTIPLE ⭐ -->
+      <div class="tile">
+        <a class="mode-link" href="/controller-multiple.html">
+          <div class="strip" style="opacity:.09;background:linear-gradient(180deg,#bdb2ff,#9be7ff)"></div>
+          <div class="tile-top">
+            <div class="title">MULTIPLE</div>
+            <div class="tag">type</div>
+          </div>
+          <div class="tile-mid">
+            <div class="tile-screen">
+              <svg class="screen-glyph" viewBox="0 0 64 64">
+                <g stroke="currentColor" stroke-width="1.6" fill="none">
+                  <circle cx="32" cy="28" r="6"/>
+                  <path d="M20 44c6-6 18-6 24 0"/>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <div class="tile-bottom">
+            <div class="desc">Every role you add grows a branch; shared roles weave quiet infrastructures between you.</div>
+            <div class="meta">04</div>
+            <div><span class="cta">OPEN</span></div>
+          </div>
+        </a>
+      </div>
+
+      <!-- ⭐ MISALIGNED ⭐ -->
+      <div class="tile">
+        <a class="mode-link" href="/controller-misaligned.html">
+          <div class="strip" style="opacity:.08;background:linear-gradient(180deg,#ff9ea3,#ffd166)"></div>
+          <div class="tile-top">
+            <div class="title">MISALIGNED</div>
+            <div class="tag">swipe</div>
+          </div>
+          <div class="tile-mid">
+            <div class="tile-screen">
+              <svg class="screen-glyph" viewBox="0 0 64 64">
+                <g stroke="currentColor" stroke-width="1.6" fill="none">
+                  <path d="M18 34l8-8 10 6 8-6 6 8"/>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <div class="tile-bottom">
+            <div class="desc">Systems drag your glyph through zones and leave an imprint of each forced shape.</div>
+            <div class="meta">05</div>
+            <div><span class="cta">OPEN</span></div>
+          </div>
+        </a>
+      </div>
+
+      <!-- ⭐ LEGIBLE ⭐ -->
+      <div class="tile">
+        <a class="mode-link" href="/controller-legible.html">
+          <div class="strip" style="opacity:.09;background:linear-gradient(180deg,#ffffff10,#00000010)"></div>
+          <div class="tile-top">
+            <div class="title">LEGIBLE / ILLEGIBLE</div>
+            <div class="tag">system</div>
+          </div>
+          <div class="tile-mid">
+            <div class="tile-screen">
+              <svg class="screen-glyph" viewBox="0 0 64 64">
+                <g stroke="currentColor" stroke-width="1.6" fill="none">
+                  <rect x="18" y="22" width="28" height="20" rx="3"/>
+                  <path d="M22 30h20"/>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <div class="tile-bottom">
+            <div class="desc">The system decides when you are sharp, blurred, visible, or gone.</div>
+            <div class="meta">06</div>
+            <div><span class="cta">OPEN</span></div>
+          </div>
+        </a>
+      </div>
+
+    </div>
+
+    <div class="hint" style="margin-top:18px">
+      After each mode, you’ll see the story that shaped it.  
+      Note: Data collected will be archived locally.
+    </div>
+  </div>
+
+  <!-- SOCKET + STORY SCRIPT -->
+  <script>
+    (function(){
+      const socket = io();
+
+      // -----------------------------
+      // 1) Mode change on tile click
+      // -----------------------------
+      document.querySelectorAll("a.mode-link").forEach(a => {
+        a.addEventListener("click", ev => {
+          ev.preventDefault();
+
+          const href = a.getAttribute("href") || "";
+
+          let m =
+            a.dataset.mode ||
+            (href.match(/\/?controller-([^.\/]+)\.html/) || [])[1] ||
+            (href.match(/\/?mode-([^.\/]+)\.html/) || [])[1] ||
+            "";
+
+          m = (m || "").trim();
+          console.log("[modes] extracted mode:", m);
+
+          if (m) {
+            socket.emit("change-mode", m);
+            console.log("[modes] change-mode ->", m);
+            setTimeout(() => window.location.href = href, 120);
+          } else {
+            console.warn("[modes] NO MODE FOUND for:", href);
+            window.location.href = href;
+          }
+        });
+      });
+
+      // -----------------------------
+      // 2) Story data per mode
+      // -----------------------------
+      const STORIES = {
+        relational: {
+          label: "MODE CONTEXT",
+          title: "RELATIONAL — who are you next to?",
+          body: "This mode is drawn from workers who said their name only ‘counts’ when someone important is listening — a contractor, a supervisor, an officer. The same name feels heavier or lighter depending on whose gaze it sits under.\n\nHere, your glyph moves as your face moves in relation to others. Your identity becomes a function of where you stand, who you stand near, and who you are seen with — not just who you say you are.",
+          why: [
+            "Relational because many workers described identity as something that only stabilises in relation to bosses, documents, and rumours on site.",
+            "The orbiting motion mirrors how recognition often comes from being close to certain people, places, or systems — not from the self alone."
+          ],
+          questions: [
+            "When does your identity feel most ‘visible’? Is it alone, or around specific people or institutions?",
+            "Whose gaze are you designing for when you think about your own future?",
+            "What might a system look like if it recognised relationships, not just individuals?"
+          ]
+        },
+        transitory: {
+          label: "MODE CONTEXT",
+          title: "TRANSITORY — always passing through",
+          body: "Many workers described themselves as ‘staying for a while’ — never fully from here, never fully from there. ID papers change with every project, address, contractor. Bodies move more than records do.\n\nIn this mode, your glyph never quite settles. Movement pulls it away from centre, merges it with others, then pushes it apart again. Identity becomes something you pass through, not something you own.",
+          why: [
+            "Transitory because contracts, sites, and cities change faster than the people can put down roots.",
+            "The merging behaviour echoes how workers are often treated as interchangeable ‘labour’ — blended, then separated again without trace."
+          ],
+          questions: [
+            "Where in your life do you feel ‘temporary’, even if you’ve been there for years?",
+            "If a system assumed you were always on the move, how would it misread your stability, your belonging?",
+            "What would it take for a transitory identity to be treated as fully real, not just ‘in passing’?"
+          ]
+        },
+        interoperable: {
+          label: "MODE CONTEXT",
+          title: "INTEROPERABLE — when voices must match fields",
+          body: "Workers often have to repeat the same details — name, father’s name, village, number — across contractors, banks, SIM cards, welfare forms. The story changes tone, but the fields stay the same.\n\nHere, your voice controls how your glyph resonates and connects. The system only ‘listens’ when your signal is strong enough and structured enough to be legible.",
+          why: [
+            "Interoperable because one identity record is expected to plug into many systems — HR, banking, telecom, welfare — without ever breaking.",
+            "The audio-driven behaviour mirrors how people adjust their voice, accent, and confidence to fit different counters and offices."
+          ],
+          questions: [
+            "Where have you had to change your way of speaking just to be taken seriously?",
+            "If your identity had to be ‘plug and play’ across institutions, what would get flattened or erased?",
+            "What might an infrastructure look like that adapts to your way of speaking, instead of the other way around?"
+          ]
+        },
+        multiple: {
+          label: "MODE CONTEXT",
+          title: "MULTIPLE — more roles than one ID can hold",
+          body: "Many workers carry roles that never appear on their ID cards: friend, parent, translator, informal supervisor, negotiator, cook. The card usually knows only one of these roles: ‘labour’.\n\nIn this mode, every role you type grows a branch from your glyph. Shared roles quietly connect you to others, forming an unseen map of how people actually hold each other up.",
+          why: [
+            "Multiple because a single ID number can’t hold everything someone does to keep life going — on site and back home.",
+            "The branching diagram echoes how informal responsibilities stretch across people, rooms, and phone calls."
+          ],
+          questions: [
+            "Which roles in your life show up on paper, and which ones exist only in people’s memories?",
+            "Who are you most responsible to, in ways no form will ever ask you about?",
+            "If a system recognised all your roles, what might it owe you in return?"
+          ]
+        },
+        misaligned: {
+          label: "MODE CONTEXT",
+          title: "MISALIGNED — one body, many categories",
+          body: "Workers spoke about being read differently by different departments: as ‘temporary’ for housing, ‘permanent’ for debt, ‘local enough’ for risk, ‘outsider’ for benefits. The same person slides between boxes depending on which counter they stand at.\n\nHere, your glyph is dragged through zones like labour, banking, welfare. Each zone reshapes it. A faint ghost of the previous shape lingers, marking what each system chose to keep and what it discarded.",
+          why: [
+            "Misaligned because the categories that govern work, housing, and belonging rarely line up cleanly for the same person.",
+            "The zone-based distortion mirrors how systems reformat identity to fit their own logic, not the person’s reality."
+          ],
+          questions: [
+            "Where do you feel ‘correctly’ classified in your life, and where do you feel fundamentally misread?",
+            "What parts of you get left behind when you move from one institution to another?",
+            "If two systems described you in opposite ways, which one would you believe?"
+          ]
+        },
+        legible: {
+          label: "MODE CONTEXT",
+          title: "LEGIBLE / ILLEGIBLE — seen only when useful",
+          body: "Several workers described being hyper-visible when something was needed from them — signatures, biometrics, numbers — and almost invisible when they needed something back.\n\nIn this mode, the system quietly takes over your glyph: fading, sharpening, vanishing, blurring without your input. Your controller becomes a fake interface — a reminder that not all control surfaces are actually connected.",
+          why: [
+            "Legible / illegible because people are made visible to systems only at specific moments and for specific purposes.",
+            "The fake calculator interface echoes forms and apps that mimic agency while decisions are taken elsewhere."
+          ],
+          questions: [
+            "When does it feel like a system ‘sees’ you too much, and when does it not see you at all?",
+            "Have you ever filled a form or pressed a button that felt symbolic rather than real?",
+            "What would it mean for you to be legible on your own terms, not just when a database requires it?"
+          ]
+        }
+      };
+
+      // -----------------------------
+      // 3) Story overlay helpers
+      // -----------------------------
+      function closeStory() {
+        const overlay = document.querySelector(".story-overlay");
+        if (overlay) overlay.remove();
+      }
+
+      function openStory(key) {
+        const data = STORIES[key];
+        if (!data) return;
+
+        closeStory(); // ensure only one
+
+        const overlay = document.createElement("div");
+        overlay.className = "story-overlay";
+
+        const panel = document.createElement("div");
+        panel.className = "story-panel";
+
+        panel.innerHTML = `
+          <div class="story-close-x" data-close="1">×</div>
+          <div class="story-label">${data.label}</div>
+          <h2 class="story-title">${data.title}</h2>
+
+          <div class="story-body">${data.body.replace(/\n/g,"<br/>")}</div>
+
+          <div class="story-section-title">WHY THIS MODE?</div>
+          <ul class="story-list">
+            ${data.why.map(line => `<li>${line}</li>`).join("")}
+          </ul>
+
+          <div class="story-section-title">QUESTIONS TO CARRY BACK</div>
+          <ul class="story-list">
+            ${data.questions.map(line => `<li>${line}</li>`).join("")}
+          </ul>
+
+          <div class="story-footer">
+            <span>you just left: ${key.toUpperCase()}</span>
+            <div style="display:flex;gap:6px;">
+              <button class="story-btn" data-close="1">close</button>
+              <button class="story-btn primary" data-close="1">back to modes</button>
+            </div>
+          </div>
+        `;
+
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+
+        // close handlers
+        overlay.addEventListener("click", (ev) => {
+          if (ev.target === overlay || ev.target.dataset.close === "1") {
+            closeStory();
+          }
+        });
+      }
+
+      // -----------------------------
+      // 4) Check URL for ?modeStory=
+      // -----------------------------
+      function checkQuery() {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const key = (params.get("modeStory") || "").trim().toLowerCase();
+          if (key && STORIES[key]) {
+            setTimeout(() => openStory(key), 350);
+          }
+        } catch (e) {
+          console.warn("[modes] query parse error", e);
+        }
+      }
+
+      checkQuery();
+    })();
+  </script>
+</body>
+</html>

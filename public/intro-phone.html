@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+  <title>ID / ENTITY — INTRO (Phone)</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:#060708;
+      --ink:#e7eef8;
+      --muted:#99a0ad;
+      --accent:#ff5c57;
+      --mono: ui-monospace, Menlo, Monaco, monospace;
+    }
+    html, body {
+      margin:0;
+      padding:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    * { box-sizing:border-box; }
+
+    .wrap {
+      padding:24px 18px 32px;
+      max-width:900px;
+      margin:0 auto;
+    }
+
+    .title {
+      letter-spacing:0.08em;
+      font-weight:600;
+      font-size:14px;
+      margin-bottom:10px;
+      color:var(--ink);
+      font-family:var(--mono);
+    }
+
+    /* TEXT BOX */
+    #textBox {
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.05);
+      padding:18px;
+      border-radius:10px;
+      min-height:200px;
+      line-height:1.6;
+      font-size:15px;
+      white-space:pre-wrap;
+      position:relative;
+      overflow:hidden;
+    }
+
+    /* cursor */
+    #cursor {
+      position:absolute;
+      width:8px;
+      height:18px;
+      background:var(--ink);
+      animation: blink 1s steps(2,start) infinite;
+    }
+    @keyframes blink { 50% { opacity:0; } }
+
+    .row {
+      display:flex;
+      gap:12px;
+      margin-top:16px;
+      flex-wrap:wrap;
+    }
+
+    .btn {
+      flex:1;
+      padding:12px 14px;
+      border-radius:8px;
+      background:rgba(255,255,255,0.05);
+      color:var(--ink);
+      border:1px solid rgba(255,255,255,0.08);
+      text-align:center;
+      font-family:var(--mono);
+      text-decoration:none;
+      font-size:12px;
+      letter-spacing:0.08em;
+      cursor:pointer;
+    }
+
+    .btn-primary {
+      background:var(--accent);
+      border:none;
+      color:#000;
+      font-weight:600;
+      margin-top:16px;
+      display:block;
+      text-align:center;
+      width:100%;
+    }
+
+    .meta {
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <div class="title">ID / ENTITY — INTRODUCTION</div>
+
+  <div id="textBox"></div>
+
+  <div class="row">
+    <button id="playPause" class="btn">▶ PLAY VOICE</button>
+    <button id="replay" class="btn">REPLAY TEXT</button>
+  </div>
+
+  <a href="unlock.html" class="btn btn-primary">
+    BEGIN EXPERIENCE
+  </a>
+
+  <div class="meta">
+    You can listen or read — both carry the same introduction.
+  </div>
+</div>
+
+<!-- Pre-recorded voiceover -->
+<audio id="voice" src="/note.mp3" preload="auto"></audio>
+
+<script>
+/* -----------------------------
+   TEXT CONTENT (short intro)
+------------------------------*/
+const text = `When you introduce yourself, there’s always one thing you never skip: your name.
+
+It is the most immediate marker of identity — yet it’s given to you, not chosen by you.
+
+Today’s experience begins with that simple act of introduction: to each other, and to the system.
+
+As you enter and interact, you’ll notice something important: identity and identification are not the same thing.
+One is lived. One is assigned.
+
+What happens in the gap between the two is what we explore here.`;
+
+/* Elements */
+const box        = document.getElementById("textBox");
+const playPause  = document.getElementById("playPause");
+const replayBtn  = document.getElementById("replay");
+const audio      = document.getElementById("voice");
+
+let idx   = 0;
+let timer = null;
+
+/* Cursor */
+const cursor = document.createElement("div");
+cursor.id = "cursor";
+box.appendChild(cursor);
+
+function updateCursor() {
+  const range = document.createRange();
+
+  if (!box.firstChild || box.childNodes.length === 1) {
+    cursor.style.left = "8px";
+    cursor.style.top  = "8px";
+    return;
+  }
+
+  let last = box.lastChild;
+  if (last === cursor) last = box.childNodes[box.childNodes.length - 2];
+
+  try {
+    range.setStart(last, last.length || 0);
+    range.setEnd(last, last.length || 0);
+  } catch(e) {
+    range.selectNodeContents(box);
+    range.collapse(false);
+  }
+
+  const rect   = range.getBoundingClientRect();
+  const parent = box.getBoundingClientRect();
+
+  cursor.style.left = (rect.left - parent.left) + "px";
+  cursor.style.top  = (rect.top  - parent.top)  + "px";
+}
+
+function typeChar() {
+  if (idx >= text.length) {
+    return;
+  }
+
+  const ch = text[idx];
+
+  if (ch === "\n") {
+    box.insertBefore(document.createElement("br"), cursor);
+    idx++;
+
+    const double = text[idx] === "\n";
+    if (double) {
+      box.insertBefore(document.createElement("br"), cursor);
+      idx++;
+    }
+
+    updateCursor();
+    timer = setTimeout(typeChar, 220); // slower on line breaks
+    return;
+  }
+
+  const last = box.lastChild;
+  if (!last || last === cursor || last.nodeType !== Node.TEXT_NODE) {
+    box.insertBefore(document.createTextNode(ch), cursor);
+  } else {
+    last.textContent += ch;
+  }
+
+  idx++;
+  updateCursor();
+  timer = setTimeout(typeChar, 40); // slightly slower for readability
+}
+
+function startTyping() {
+  clearTimeout(timer);
+  idx = 0;
+  box.innerHTML = "";
+  box.appendChild(cursor);
+  setTimeout(typeChar, 180);
+}
+
+/* -----------------------------
+   PLAY/PAUSE VOICEOVER
+------------------------------*/
+let isPlaying = false;
+
+playPause.addEventListener("click", () => {
+  if (!isPlaying) {
+    audio.play();
+    playPause.textContent = "⏸ PAUSE VOICE";
+    isPlaying = true;
+  } else {
+    audio.pause();
+    playPause.textContent = "▶ PLAY VOICE";
+    isPlaying = false;
+  }
+});
+
+audio.addEventListener("ended", () => {
+  isPlaying = false;
+  playPause.textContent = "▶ PLAY VOICE";
+});
+
+/* Replay text (and stop voice) */
+replayBtn.addEventListener("click", () => {
+  audio.pause();
+  audio.currentTime = 0;
+  isPlaying = false;
+  playPause.textContent = "▶ PLAY VOICE";
+  startTyping();
+});
+
+/* Clean up if user leaves */
+window.addEventListener("beforeunload", () => {
+  audio.pause();
+});
+
+/* Start on load */
+window.addEventListener("load", startTyping);
+</script>
+
+</body>
+</html>

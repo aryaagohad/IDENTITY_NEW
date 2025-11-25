@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HOST — Relational Mode</title>
+
+  <style>
+    :root{
+      --bg: #060708;
+      --panel: #e7eef8;
+      --muted: #98a0a8;
+      --accent: #ff5c57;
+      --mono: ui-monospace, Menlo, Monaco, "Roboto Mono", monospace;
+    }
+    html,body { height:100%; margin:0; background:var(--bg); color:var(--panel); font-family:Inter, system-ui, -apple-system; -webkit-font-smoothing:antialiased; }
+    .wrap { display:flex; height:100vh; gap:18px; padding:18px; box-sizing:border-box; align-items:stretch; }
+    .left { flex:1 1 70%; position:relative; border-radius:12px; overflow:hidden; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.02); }
+    .right { width:320px; min-width:260px; max-width:360px; display:flex; flex-direction:column; gap:12px; }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+    .brand { font-family:var(--mono); font-size:12px; letter-spacing:0.12em; color:var(--muted); }
+    h1 { margin:0; font-family:var(--mono); font-size:18px }
+    .host-canvas { position:absolute; inset:0; display:block; }
+    .panel { background: rgba(255,255,255,0.02); border-radius:10px; padding:12px; border:1px solid rgba(255,255,255,0.02); }
+    .controls { display:flex; gap:8px; align-items:center; }
+    .btn { font-family:var(--mono); background:var(--accent); color:#fff; border:none; padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:700; letter-spacing:0.06em; }
+    .small { font-size:12px; padding:6px 8px; border-radius:7px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.02); color:var(--panel); }
+    .list { display:flex; flex-direction:column; gap:6px; max-height:40vh; overflow:auto; padding-right:6px; }
+    .participant { display:flex; justify-content:space-between; padding:8px; border-radius:8px; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02); font-family:var(--mono); font-size:13px; }
+    .meta { font-family:var(--mono); color:var(--muted); font-size:12px; }
+    .hint { color:var(--muted); font-size:13px; font-family:var(--mono); }
+    .debug { font-size:12px; color:var(--muted); font-family:var(--mono); white-space:pre-wrap; max-height:18vh; overflow:auto; background:rgba(0,0,0,0.2); padding:8px; border-radius:6px; border:1px dashed rgba(255,255,255,0.02); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <div id="hostCanvas" class="host-canvas"></div>
+      <div style="position:absolute;right:14px;top:14px;background:rgba(0,0,0,0.22);padding:8px;border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--panel)">
+        RELATIONAL MODE — LIVE
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel">
+        <header>
+          <div>
+            <div class="brand">IDENTITY · HOST</div>
+            <h1>Relational</h1>
+          </div>
+          <div class="controls">
+            <button id="clearBtn" class="small">Clear</button>
+            <button id="pauseBtn" class="btn">Pause</button>
+          </div>
+        </header>
+
+        <div class="hint">Display shows only participants currently in Relational Mode. Use the buttons to pause or clear visual state for demos.</div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-family:var(--mono);font-size:13px;color:var(--muted)">Participants</div>
+          <div class="meta" id="participantCount">0</div>
+        </div>
+        <div id="participantsList" class="list"></div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-family:var(--mono);font-size:13px;color:var(--muted)">Debug</div>
+          <div class="meta" id="lastUpdate">idle</div>
+        </div>
+        <div id="debugBox" class="debug">No updates yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- libs -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
+
+  <!-- app logic: relies on your /js/modes/relational.js, metrics.js, glyphEngine.js -->
+  <script src="/js/metrics.js"></script>
+  <script src="/js/glyphEngine.js"></script>
+  <script src="/js/modes/relational.js"></script>
+
+  <script>
+    (function () {
+      const socket = io();
+      const container = document.getElementById('hostCanvas');
+      const participantsListEl = document.getElementById('participantsList');
+      const participantCountEl = document.getElementById('participantCount');
+      const debugBox = document.getElementById('debugBox');
+      const lastUpdateEl = document.getElementById('lastUpdate');
+      const pauseBtn = document.getElementById('pauseBtn');
+      const clearBtn = document.getElementById('clearBtn');
+
+      // start the p5 sketch (relational.js exposes startModeSketch)
+      let p5Instance = null;
+      try {
+        if (window.startModeSketch) {
+          p5Instance = window.startModeSketch(container, socket);
+        } else {
+          console.warn('startModeSketch not found — ensure /js/modes/relational.js is loaded');
+          container.innerHTML = '<div style="padding:18px;color:#ddd">Mode script not found.</div>';
+        }
+      } catch (e) {
+        console.error('Could not start mode sketch', e);
+        container.innerHTML = '<div style="padding:18px;color:#ddd">Error starting mode.</div>';
+      }
+
+      // local participant state mirror (kept in sync with sketch)
+      const activeParticipants = new Map();
+
+      function renderParticipantsList() {
+        participantsListEl.innerHTML = '';
+        const ids = Array.from(activeParticipants.keys());
+        participantCountEl.textContent = ids.length;
+        ids.forEach(id => {
+          const data = activeParticipants.get(id) || {};
+          const name = data.pdata ? (data.pdata.firstName || data.pdata.nativeName || 'anon') : (data.id || id);
+          const row = document.createElement('div');
+          row.className = 'participant';
+          row.innerHTML = `<div>${name}</div><div class="meta">${id.slice(0,8)}</div>`;
+          participantsListEl.appendChild(row);
+        });
+      }
+
+      // socket handlers — these mirror the server events used by the controller
+      socket.on('relational:participant-joined', async (pkt) => {
+        try {
+          const pid = pkt && pkt.participantId;
+          if (!pid) return;
+          activeParticipants.set(pid, { id: pid });
+          renderParticipantsList();
+          debugBox.textContent = `joined: ${pid}`;
+        } catch (e) {}
+      });
+
+      socket.on('relational:participant-left', (pkt) => {
+        try {
+          const pid = pkt && pkt.participantId;
+          if (!pid) return;
+          activeParticipants.delete(pid);
+          renderParticipantsList();
+          debugBox.textContent = `left: ${pid}`;
+        } catch (e) {}
+      });
+
+      // receive normalized updates forwarded by server
+      socket.on('relational:update', (packet) => {
+        lastUpdateEl.textContent = new Date().toLocaleTimeString();
+        debugBox.textContent = JSON.stringify(packet, null, 2);
+        // The sketch's code will fetch archive on join and update participants through relational:update as well.
+        // We just keep a lightweight mirror for the list. If packet contains participantId, ensure present in list:
+        if (packet && packet.participantId) {
+          if (!activeParticipants.has(packet.participantId)) {
+            activeParticipants.set(packet.participantId, { id: packet.participantId });
+          }
+          // keep last control metrics (for visibility)
+          const current = activeParticipants.get(packet.participantId) || { id: packet.participantId };
+          current.lastControl = { gaze: packet.gaze, proximity: packet.proximity, ts: packet.ts || Date.now() };
+          activeParticipants.set(packet.participantId, current);
+          renderParticipantsList();
+        }
+      });
+
+      // pause / clear buttons
+      let paused = false;
+      pauseBtn.addEventListener('click', () => {
+        paused = !paused;
+        pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+        // simple: stop drawing via p5 instance
+        if (p5Instance && p5Instance.noLoop && p5Instance.loop) {
+          if (paused) p5Instance.noLoop(); else p5Instance.loop();
+        }
+      });
+
+      clearBtn.addEventListener('click', () => {
+        // clear local participants (host side)
+        activeParticipants.clear();
+        renderParticipantsList();
+        // also ask server to broadcast a clear if you want (not necessary)
+        debugBox.textContent = 'cleared';
+      });
+
+      // cleanup on unload
+      window.addEventListener('beforeunload', () => {
+        try { socket.close(); } catch(e) {}
+      });
+
+    })();
+  </script>
+
+</body>
+</html>

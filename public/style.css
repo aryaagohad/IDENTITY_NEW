@@ -1,0 +1,135 @@
+:root {
+  --bg: #060708;
+  --panel: #e7eef8;
+  --muted: #99a0ad;
+  --accent: #ff5c57;
+  --accent-soft: #ffb84d;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; height:100%; background:var(--bg); color:var(--panel); -webkit-font-smoothing:antialiased; }
+.device { width:100%; max-width:420px; padding:16px; margin: 8px auto; }
+.topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.leds { display:flex; gap:6px; }
+.led { width:10px; height:10px; border-radius:50%; box-shadow: inset 0 1px 0 rgba(0,0,0,0.3); }
+.led.red { background:#ff5c57; }
+.led.yellow { background:#ffd166; }
+.led.green { background:#6bffb8; }
+.brand { font-size:12px; letter-spacing:0.12em; font-weight:700; }
+
+.screen { background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:14px; margin-bottom:10px; border:1px solid rgba(255,255,255,0.02); display:flex; flex-direction: column; justify-content:flex-start; }
+.lock-wrap { display:flex; justify-content:center; align-items:center; min-height:240px; }
+.lock-title { font-weight:700; margin:0 0 6px; }
+.lock-sub { color:var(--muted); margin:0 0 12px; font-size:13px; }
+
+.finger-area { width:160px; height:160px; margin:8px auto; position:relative; touch-action:none; }
+.progress-ring svg { width:120px; height:120px; position:absolute; top:20px; left:20px; }
+.fp-dot { position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:12px; height:12px; background:var(--accent); border-radius:50%; box-shadow:0 6px 18px rgba(255,92,87,0.12); }
+
+.rigid-form { display:flex; flex-direction:column; gap:12px; text-align:left; }
+.row { display:flex; gap:8px; }
+label { font-size:13px; color:var(--muted); display:flex; flex-direction:column; gap:6px; }
+input, select { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.04); color:var(--panel); border-radius:8px; padding:10px; font-size:14px; outline:none; width:100%; }
+.btn { background:rgba(255,255,255,0.04); color:var(--panel); border:none; padding:12px; border-radius:10px; font-weight:700; cursor:pointer; }
+.primary-wide { background:var(--accent); color:white; width:100%; }
+
+.foot { text-align:center; color:var(--muted); font-size:12px; margin-top:8px; }
+.preview-small { width:100%; height:120px; border-radius:8px; background:transparent; overflow:hidden; margin-bottom:6px; border:1px solid rgba(255,255,255,0.02); }
+
+@media(min-width:540px) {
+  .device { max-width:640px; }
+  .preview-small { height:160px; }
+}
+
+/* printing / export tweaks for id.html final render */
+@media print {
+  html, body { background: white !important; color: #111 !important; }
+  .device, .topbar, .foot, #downloadControls { display: none !important; }
+  #rendererContainer {
+    position:relative;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+    overflow: hidden; 
+  }
+}
+
+/* ensure final render canvas scales well for export */
+#rendererContainer canvas {
+  image-rendering: optimizeQuality;
+  width: 100% !important;
+  height: auto !important;
+  display: block;
+}
+
+/* ----------------------------------------------------
+   TE-INSPIRED IDENTITY CARD
+---------------------------------------------------- */
+
+.te-glyph-box {
+  width: 100%;
+  height: 260px;
+  background: #F5F5F6;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  position: relative;
+}
+
+.te-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 16px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.te-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.te-label {
+  opacity: 0.5;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+
+.te-value {
+  text-align: right;
+  font-weight: 600;
+  color: var(--panel);
+}
+
+.te-divider {
+  height: 1px;
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  margin: 4px 0;
+}
+
+.te-notes {
+  white-space: pre-line;   /* render \n as actual line breaks */
+  line-height: 1.35; 
+  text-align: justify;
+  max-width: 240px;
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+.te-downloads {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}

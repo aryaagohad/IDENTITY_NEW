@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>IDENTITY — Unlock Access</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+  <div class="device">
+    <div class="topbar">
+      <div class="leds">
+        <span class="led red"></span>
+        <span class="led yellow"></span>
+        <span class="led green"></span>
+      </div>
+      <div class="brand">IDENTITY</div>
+    </div>
+
+    <!-- UNLOCK BLOCK -->
+    <div id="unlockBlock" class="screen lock-wrap active">
+      <div class="lock-screen">
+        <p class="lock-title">ACCESS REQUIRED</p>
+        <p class="lock-sub",>Hold one finger to proceed</p>
+
+        <div id="fingerArea" class="finger-area">
+          <div class="fp-ring">
+            <div class="fp-dot" id="fpDot"></div>
+          </div>
+
+          <div class="progress-ring" id="progressRing">
+            <svg viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="54"
+                stroke="rgba(255,255,255,0.06)"
+                stroke-width="12" fill="none"></circle>
+              <circle id="progressCircle"
+                cx="60" cy="60" r="54"
+                stroke="#ff5c57" stroke-width="12"
+                fill="none" stroke-linecap="round"
+                stroke-dasharray="339.292"
+                stroke-dashoffset="339.292"></circle>
+            </svg>
+          </div>
+        </div>
+
+        <p class="hint">Hold for <strong id="countdown">2s</strong></p>
+      </div>
+    </div>
+
+    <div class="foot">© ID / ENTITY</div>
+  </div>
+
+  <audio id="humSound" src="hum.mp3" preload="auto"></audio>
+  <script src="/js/app-unlock.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Your ID — Identity</title>
+  <link rel="stylesheet" href="style.css"/>
+
+  <style>
+    .copy-btn {
+      font-family: ui-monospace, Menlo, Monaco;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      background: #f3f3f3;
+      cursor: pointer;
+    }
+    .copy-btn.copied {
+      background: #c2ffd4;
+      border-color: #65d48b;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="device">
+
+    <div class="topbar">
+      <div class="leds">
+        <span class="led red"></span>
+        <span class="led yellow"></span>
+        <span class="led green"></span>
+      </div>
+      <div class="brand">IDENTITY — your glyph</div>
+    </div>
+
+    <div class="screen">
+
+      <!-- GLYPH RENDER OUTPUT -->
+      <div id="rendererContainer" class="te-glyph-box"></div>
+
+      <!-- IDENTITY CARD SECTION -->
+      <div class="te-card">
+
+        <div class="te-row">
+          <div class="te-label">ENTITY</div>
+          <div class="te-value" id="card_fullName">—</div>
+        </div>
+
+        <div class="te-divider"></div>
+
+        <div class="te-row">
+          <div class="te-label">SIGNATURE</div>
+          <div class="te-value" id="card_voice">no voice sample</div>
+        </div>
+
+        <div class="te-row">
+          <div class="te-label">STRUCTURE</div>
+          <div class="te-value" id="card_structure">—</div>
+        </div>
+
+        <div class="te-row">
+          <div class="te-label">COMPLEXITY</div>
+          <div class="te-value" id="card_complexity">—</div>
+        </div>
+
+        <div class="te-row">
+          <div class="te-label">ASYMMETRY</div>
+          <div class="te-value" id="card_asymmetry">—</div>
+        </div>
+
+        <div class="te-divider"></div>
+
+        <div class="te-row">
+          <div class="te-label">SYSTEM NOTES</div>
+          <div class="te-value te-notes" id="card_notes">
+            awaiting computation…
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- DOWNLOAD + COPY -->
+      <div id="downloadControls" class="te-downloads">
+        <button id="downloadPngBtn" class="btn">Download PNG</button>
+        <button id="downloadWebmBtn" class="btn">Download WEBM</button>
+
+        <button id="copyIdBtn" class="copy-btn">Copy ID</button>
+
+        <button id="backBtn" class="btn">Back</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODES BUTTON -->
+<div style="margin-top: 0px; text-align: center;">
+  <button id="exploreBtn"
+    class="btn"
+    style="
+      background:#ff5c57;
+      color:#fff;
+      font-weight:700;
+      letter-spacing:0.05em;
+      padding:10px 16px;
+      border-radius:8px;
+      font-family:ui-monospace, Menlo, Monaco, 'Roboto Mono';
+    ">
+    EXPLORE ID / ENTITY
+  </button>
+</div>
+
+  <!-- Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Logic -->
+  <script src="/js/metrics.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
+  <script src="/js/glyphEngine.js"></script>
+  <script src="/js/finalRenderer.js"></script>
+  <script src="/js/idCard.js"></script>
+  <script src="/js/downloads.js"></script>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.setupFinal) window.setupFinal();
+    });
+
+    document.getElementById("backBtn").addEventListener("click", () => {
+      history.back();
+    });
+
+    // --- Copy ID logic ---
+    const copyBtn = document.getElementById("copyIdBtn");
+
+    copyBtn.addEventListener("click", () => {
+      const id = sessionStorage.getItem("participantId");
+
+      if (!id) return;
+
+      navigator.clipboard.writeText(id).then(() => {
+        copyBtn.classList.add("copied");
+        copyBtn.textContent = "Copied!";
+
+        setTimeout(() => {
+          copyBtn.classList.remove("copied");
+          copyBtn.textContent = "Copy ID";
+        }, 1200);
+      });
+    });
+
+    document.getElementById("exploreBtn").addEventListener("click", () => {
+  window.location.href = "/modes.html";
+});
+
+  </script>
+
+</body>
+</html>

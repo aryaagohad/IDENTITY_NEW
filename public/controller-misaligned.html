@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>Misaligned Controller</title>
+  <style>
+    :root{--bg:#0A0B0C;--ink:#F6F7F8;--muted:#A3A8AE;--accent:#ff5c57;--mono:ui-monospace,Menlo,Monaco;}
+    html,body{
+      height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);
+      -webkit-font-smoothing:antialiased;padding:18px;box-sizing:border-box;
+    }
+    h1{margin:0 0 8px 0;font-size:16px}
+    .hint{color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.4}
+    .controls{display:flex;gap:10px;margin-top:12px;align-items:center}
+    .btn{padding:10px 14px;border-radius:8px;background:var(--accent);color:#0A0B0C;border:none;font-weight:700;cursor:pointer}
+    .btn.ghost{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.04)}
+    .small{font-size:12px;color:var(--muted)}
+    #status{margin-top:12px;color:var(--muted);white-space:pre-wrap;font-size:12px}
+    #swipePad {
+      margin-top:14px;
+      height:56vh;
+      border-radius:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.03);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--muted);
+      font-family:var(--mono);
+      user-select:none;
+      touch-action: none;
+      -webkit-user-select: none;
+      text-align:center;
+      padding:12px;
+      box-sizing:border-box;
+    }
+    .hint-2 { font-size:12px;color:var(--muted);margin-top:8px }
+    #backLink{
+      position:fixed;top:16px;right:16px;
+      padding:8px 12px;
+      background:rgba(255,255,255,0.08);
+      color:#F6F7F8;border-radius:6px;
+      font-size:13px;font-family:ui-monospace,Menlo,Monaco;
+      text-decoration:none;border:1px solid rgba(255,255,255,0.06);
+      z-index:999;backdrop-filter:blur(6px);
+    }
+  </style>
+</head>
+<body>
+  <a href="/modes.html?modeStory=misaligned" id="backLink">← modes</a>
+
+  <h1>MISALIGNED MODE</h1>
+  <div class="hint">
+    Swipe to push your glyph sideways across different state zones.
+    Each zone snaps your identity into a new system shape.
+  </div>
+
+  <div class="controls">
+    <button id="enableBtn" class="btn">ENABLE CONTROLLER</button>
+    <button id="joinBtn" class="btn ghost" style="display:none">JOIN</button>
+    <div style="flex:1"></div>
+    <div class="small">participant id: <span id="pidDisplay">—</span></div>
+  </div>
+
+  <div id="status">tap ENABLE to start</div>
+
+  <div id="swipePad">Swipe across this surface to push your glyph between zones.</div>
+  <div class="hint-2">Tip: quick swipes = bigger pushes. The system decides what shape you become.</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+  (function(){
+    const MODE = "misaligned";
+    const socket = io();
+    const enableBtn = document.getElementById('enableBtn');
+    const joinBtn   = document.getElementById('joinBtn');
+    const pidDisplay= document.getElementById('pidDisplay');
+    const statusEl  = document.getElementById('status');
+    const swipePad  = document.getElementById('swipePad');
+    const backLink  = document.getElementById('backLink');
+
+    let enabled = false;
+    let joined = false;
+    let participantId = sessionStorage.getItem('participantId') || null;
+    if (participantId) pidDisplay.textContent = participantId;
+
+    let lastPointer = null;
+    let velocity = { x: 0, y: 0 };
+
+    function setStatus(s) { statusEl.textContent = s; }
+
+    enableBtn.addEventListener('click', () => {
+      if (enabled) return;
+      enabled = true;
+      setStatus('controller enabled — tap JOIN to participate');
+      joinBtn.style.display = 'inline-block';
+      enableBtn.style.display = 'none';
+    });
+
+    socket.on('connect', () => {
+      console.log('[misaligned-controller] socket', socket.id);
+      setStatus(enabled ? 'connected — tap JOIN' : 'connected — tap ENABLE');
+      if (joined && participantId) {
+        socket.emit("change-mode", MODE);
+      }
+    });
+
+    socket.on('disconnect', () => {
+      setStatus('disconnected');
+    });
+
+    joinBtn.addEventListener('click', () => {
+      participantId = sessionStorage.getItem('participantId');
+      if (!participantId) {
+        setStatus('Missing participantId — register first.');
+        return;
+      }
+      pidDisplay.textContent = participantId;
+      joined = true;
+      socket.emit("change-mode", MODE);
+      socket.emit(MODE + ':join', { participantId });
+      setStatus('joined — swipe to move your glyph across zones');
+    });
+
+    function normalizeEvent(e) {
+      let x,y;
+      if (e.touches && e.touches.length) {
+        x = e.touches[0].clientX;
+        y = e.touches[0].clientY;
+      } else {
+        x = e.clientX;
+        y = e.clientY;
+      }
+      const r = swipePad.getBoundingClientRect();
+      return { x: x - r.left, y: y - r.top };
+    }
+
+    function pointerDown(e) {
+      e.preventDefault();
+      const p = normalizeEvent(e);
+      lastPointer = { x: p.x, y: p.y, t: Date.now() };
+    }
+
+    function pointerMove(e) {
+      if (!lastPointer) return;
+      const p = normalizeEvent(e);
+      const now = Date.now();
+      const dt = Math.max(12, now - lastPointer.t);
+      const dx = p.x - lastPointer.x;
+      const dy = p.y - lastPointer.y;
+      const vw = swipePad.clientWidth;
+      const vh = swipePad.clientHeight;
+      velocity.x = (dx / Math.max(1, vw)) / (dt/16);
+      velocity.y = (dy / Math.max(1, vh)) / (dt/16);
+      lastPointer = { x: p.x, y: p.y, t: now };
+
+      if (joined && participantId) {
+        socket.emit(MODE + ':update', {
+          participantId,
+          vx: velocity.x,
+          vy: velocity.y,
+          ts: Date.now()
+        });
+      }
+    }
+
+    function pointerUp(e) {
+      if (!lastPointer) return;
+      if (joined && participantId) {
+        socket.emit(MODE + ':update', {
+          participantId,
+          vx: velocity.x * 4,
+          vy: velocity.y * 4,
+          ts: Date.now()
+        });
+      }
+      lastPointer = null;
+      velocity = { x:0, y:0 };
+    }
+
+    swipePad.addEventListener('pointerdown', pointerDown, { passive:false });
+    window.addEventListener('pointermove', pointerMove, { passive:false });
+    window.addEventListener('pointerup', pointerUp, { passive:false });
+
+    swipePad.addEventListener('touchstart', (e)=>pointerDown(e), { passive:false });
+    window.addEventListener('touchmove',  (e)=>pointerMove(e), { passive:false });
+    window.addEventListener('touchend',   (e)=>pointerUp(e),   { passive:false });
+
+    function leaveSession() {
+      if (!joined || !participantId) return;
+      socket.emit(MODE + ':leave', { participantId });
+      joined = false;
+      setStatus('left misaligned mode');
+    }
+
+    backLink.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      try { leaveSession(); } catch(e){}
+      window.location.href = backLink.getAttribute("href");
+    });
+
+    window.addEventListener("beforeunload", () => {
+      try { leaveSession(); } catch(e){}
+    });
+
+  })();
+  </script>
+</body>
+</html>

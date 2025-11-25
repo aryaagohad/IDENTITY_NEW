@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>IDENTITY — Mode Wall</title>
+
+  <style>
+    /* Import Inter */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+    :root {
+      --bg: #0A0B0C;
+      --ink: #F6F7F8;
+      --muted: #A3A8AE;
+      --mono: ui-monospace, Menlo, Monaco, "SFMono-Regular";
+
+      /* Add Inter as the main UI font */
+      --ui: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+    }
+
+    html, body {
+      height:100%;
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:var(--ui);      /* ⭐ now using Inter */
+      overflow:hidden;
+    }
+
+    #modeStatus {
+      position:fixed;
+      top:14px;
+      left:18px;
+      font-size:14px;
+      letter-spacing:0.06em;
+      color:var(--muted);
+      z-index:10;
+      font-family:var(--ui);  /* keep monospace for subtlety */
+    }
+
+    #canvasContainer {
+      width:100vw;
+      height:100vh;
+      overflow:hidden;
+      position:relative;
+    }
+
+    #canvasContainer::after {
+      content:"";
+      position:absolute;
+      left:0; top:0; right:0; bottom:0;
+      border:1px solid rgba(255,255,255,0.06);
+      pointer-events:none;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/metrics.js"></script>
+  <script src="/js/glyphEngine.js"></script>
+
+</head>
+<body>
+
+<div id="modeStatus">MODE: waiting…</div>
+<div id="canvasContainer"></div>
+
+<script>
+  const socket = io();
+  const container = document.getElementById("canvasContainer");
+  const modeLabel = document.getElementById("modeStatus");
+
+  let currentSketch = null;
+  let currentScript = null;
+
+  function unloadCurrentMode() {
+    if (currentSketch && typeof currentSketch.remove === "function") {
+      try { currentSketch.remove(); } catch(e){}
+    }
+    currentSketch = null;
+
+    if (currentScript) {
+      try { document.body.removeChild(currentScript); } catch(e){}
+    }
+    currentScript = null;
+
+    container.innerHTML = "";
+  }
+
+  async function safeLoadScript(modeName) {
+    const url = `/js/modes/${modeName}.js?v=${Date.now()}`;
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      if (!res.ok) return { ok:false, reason:"not-found", url };
+
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("javascript") && !ct.includes("text/javascript"))
+        return { ok:false, reason:"bad-mime", url, contentType:ct };
+
+      const script = document.createElement("script");
+      script.src = url;
+      script.async = true;
+      return { ok:true, script, url };
+
+    } catch(err) {
+      return { ok:false, reason:"fetch-error", error:err, url };
+    }
+  }
+
+  async function loadMode(modeName) {
+    unloadCurrentMode();
+
+    if (!modeName || modeName === "none") {
+      modeLabel.textContent = "MODE: waiting…";
+      console.info("[host] loadMode: none");
+      return;
+    }
+
+    modeLabel.textContent = "MODE: " + modeName.toUpperCase();
+
+    const result = await safeLoadScript(modeName);
+    if (!result.ok) {
+      const note = document.createElement("div");
+      note.style.position = "absolute";
+      note.style.left = "18px";
+      note.style.top = "44px";
+      note.style.color = "rgba(255,255,255,0.65)";
+      note.style.fontFamily = "ui-monospace, Menlo, Monaco";
+      note.style.fontSize = "13px";
+      note.textContent = `Mode "${modeName}" unavailable (${result.reason}).`;
+      container.appendChild(note);
+      return;
+    }
+
+    currentScript = result.script;
+
+    currentScript.onload = () => {
+      if (typeof window.startModeSketch === "function") {
+        try {
+          currentSketch = window.startModeSketch(container, socket);
+          console.info("[host] started mode sketch:", modeName);
+        } catch (err) {
+          console.error("[host] error starting mode:", err);
+        }
+      } else {
+        console.warn("[host] startModeSketch NOT FOUND");
+      }
+    };
+
+    currentScript.onerror = e => {
+      console.error("[host] script load failure:", e, result.url);
+    };
+
+    document.body.appendChild(currentScript);
+  }
+
+  socket.on("connect", () => {
+    console.log("[host] connected — requesting current mode AFTER listeners ready");
+    setTimeout(() => {
+      socket.emit("request-current-mode");
+    }, 200);
+  });
+
+  socket.on("active-mode", (modeName) => {
+    console.log("[socket] active-mode ->", modeName);
+    loadMode(modeName);
+  });
+
+  window.__hostDiagnostics = {
+    reloadMode: () => socket.emit("request-current-mode"),
+    unload: unloadCurrentMode
+  };
+</script>
+
+</body>
+</html>

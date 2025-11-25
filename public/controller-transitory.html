@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>Transitory Controller</title>
+  <style>
+    :root{--bg:#0A0B0C;--ink:#F6F7F8;--muted:#A3A8AE;--accent:#ff5c57;--mono:ui-monospace,Menlo,Monaco;}
+    html,body{
+      height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);
+      -webkit-font-smoothing:antialiased;padding:18px;box-sizing:border-box;
+    }
+    h1{margin:0 0 8px 0;font-size:16px}
+    .hint{color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.4}
+    .controls{display:flex;gap:10px;margin-top:12px;align-items:center}
+    .btn{padding:10px 14px;border-radius:8px;background:var(--accent);color:#0A0B0C;
+      border:none;font-weight:700;cursor:pointer}
+    .btn.ghost{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.04)}
+    .small{font-size:12px;color:var(--muted)}
+    #status{margin-top:12px;color:var(--muted);white-space:pre-wrap;font-size:12px}
+    label{display:block;margin-top:12px;color:var(--muted);font-size:13px}
+    input[type=range]{width:100%}
+    #backLink{
+      position:fixed; top:16px; right:16px;
+      padding:8px 12px;
+      background:rgba(255,255,255,0.08);
+      color:#F6F7F8; border-radius:6px;
+      font-size:13px; font-family:var(--mono);
+      text-decoration:none; border:1px solid rgba(255,255,255,0.06);
+      z-index:999; backdrop-filter:blur(6px);
+    }
+  </style>
+</head>
+
+<body>
+
+<a href="/modes.html?modeStory=transitory" id="backLink">← modes</a>
+
+<h1>TRANSITORY MODE</h1>
+<div class="hint">
+  Your phone behaves like a tiny storm. Shakes and tilts scatter your glyph,
+  merge it with others, and leave memory rings behind.
+</div>
+
+<button id="motionBtn" class="btn" style="width:100%;margin-bottom:8px;display:none">
+  ENABLE MOTION ACCESS
+</button>
+
+<div class="controls">
+  <button id="joinBtn" class="btn">JOIN</button>
+  <div style="flex:1"></div>
+  <div class="small">participant id: <span id="pid">—</span></div>
+</div>
+
+<label>Intensity sensitivity
+  <input id="sens" type="range" min="0.5" max="5" step="0.1" value="1.6"/>
+</label>
+
+<div id="status">initializing sensors…</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function(){
+  const MODE = "transitory";
+  const socket   = io();
+
+  const motionBtn= document.getElementById("motionBtn");
+  const joinBtn  = document.getElementById('joinBtn');
+  const statusEl = document.getElementById('status');
+  const pidEl    = document.getElementById('pid');
+  const sensEl   = document.getElementById('sens');
+  const backLink = document.getElementById('backLink');
+
+  let participantId = sessionStorage.getItem('participantId') || null;
+  if (participantId) pidEl.textContent = participantId;
+
+  let joined          = false;
+  let lastEmit        = 0;
+  let alpha           = 0;
+  let rotation        = { alpha:0, beta:0, gamma:0 };
+  let motionPermitted = false;
+
+  function setStatus(msg){ statusEl.textContent = msg || ""; }
+
+  async function requestMotion() {
+    if (typeof DeviceMotionEvent === "undefined" ||
+        typeof DeviceMotionEvent.requestPermission !== "function") {
+      motionPermitted = true;
+      motionBtn.style.display = "none";
+      setStatus("motion enabled");
+      return;
+    }
+
+    try {
+      const resp = await DeviceMotionEvent.requestPermission();
+      if (resp === "granted") {
+        motionPermitted = true;
+        motionBtn.style.display = "none";
+        setStatus("motion enabled");
+      } else {
+        motionPermitted = false;
+        setStatus("motion access denied");
+      }
+    } catch (e) {
+      motionPermitted = false;
+      setStatus("motion error");
+    }
+  }
+
+  function detectPermissionNeed() {
+    if (typeof DeviceMotionEvent !== "undefined" &&
+        typeof DeviceMotionEvent.requestPermission === "function") {
+      motionBtn.style.display = "block";
+      setStatus("tap ENABLE MOTION to activate sensors");
+    } else {
+      motionPermitted = true;
+      setStatus("sensors active");
+    }
+  }
+
+  motionBtn.addEventListener("click", requestMotion);
+  detectPermissionNeed();
+
+  function handleMotion(e) {
+    if (!motionPermitted) return;
+
+    const acc = e.accelerationIncludingGravity || e.acceleration || { x:0,y:0,z:0 };
+    const rx  = e.rotationRate || { alpha:0, beta:0, gamma:0 };
+
+    const mag = Math.sqrt((acc.x||0)**2 + (acc.y||0)**2 + (acc.z||0)**2);
+    alpha = alpha * 0.8 + mag * 0.2;
+
+    rotation.alpha = (rx.alpha || 0) / 180;
+    rotation.beta  = (rx.beta  || 0) / 180;
+    rotation.gamma = (rx.gamma || 0) / 180;
+
+    const now = Date.now();
+    if (now - lastEmit < 80) return;
+    lastEmit = now;
+
+    if (!joined || !participantId) return;
+
+    const sens = parseFloat(sensEl.value || "1.6");
+
+    socket.emit(MODE + ":update", {
+      participantId,
+      intensity: Math.min(6, alpha * sens),
+      rot: {...rotation},
+      ts: now
+    });
+  }
+
+  window.addEventListener("devicemotion", handleMotion, { passive: true });
+
+  joinBtn.addEventListener('click', () => {
+    participantId = sessionStorage.getItem('participantId');
+    if (!participantId) {
+      setStatus("Missing participantId — register first.");
+      return;
+    }
+
+    pidEl.textContent = participantId;
+    joined = true;
+
+    socket.emit("change-mode", MODE);
+    socket.emit(MODE + ":join", { participantId });
+    setStatus("joined — move your phone to scatter glyph");
+  });
+
+  socket.on("connect", () => {
+    if (joined && participantId) {
+      socket.emit("change-mode", MODE);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    setStatus("disconnected from server");
+  });
+
+  setInterval(() => {
+    if (!joined) return;
+    setStatus(`joined — intensity ${alpha.toFixed(2)} • sens ${sensEl.value}`);
+  }, 400);
+
+  function leaveSession() {
+    if (!joined || !participantId) return;
+    socket.emit(MODE + ":leave", { participantId });
+    joined = false;
+    setStatus("left transitory mode");
+  }
+
+  backLink.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    try { leaveSession(); } catch(e){}
+    window.location.href = backLink.getAttribute("href");
+  });
+
+  window.addEventListener("beforeunload", () => {
+    try { leaveSession(); } catch(e){}
+  });
+
+})();
+</script>
+
+</body>
+</html>

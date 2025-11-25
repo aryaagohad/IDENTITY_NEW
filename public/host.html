@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>IDENTITY — Host Wall</title>
+
+  <link rel="stylesheet" href="/host.css" />
+
+  <!-- p5 will be used by each tile -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
+  <!-- socket.io client -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- existing project utilities (metrics + glyph generator) -->
+  <script src="/js/metrics.js"></script>
+  <script src="/js/glyphEngine.js"></script>
+</head>
+<body>
+  <div class="host-shell">
+    <header class="host-topbar">
+      <div class="host-brand">IDENTITY — Host Wall</div>
+      <div class="host-controls">
+        <button id="refreshBtn" class="btn">Refresh</button>
+        <label for="maxTiles" class="small">Max</label>
+        <input id="maxTiles" type="number" min="4" max="48" value="12" style="width:56px" />
+      </div>
+    </header>
+
+    <main>
+      <div id="hostGrid" class="host-grid" aria-live="polite"></div>
+    </main>
+
+    <footer class="host-foot">
+      <small>Showing glyphs (animated). Names are captions. Auto-updates via socket.</small>
+    </footer>
+  </div>
+
+  <script src="/js/host.js"></script>
+</body>
+</html>

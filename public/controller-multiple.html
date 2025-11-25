@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+  <title>Multiple Mode</title>
+
+  <style>
+    :root {
+      --bg: #0A0B0C;
+      --ink: #F6F7F8;
+      --muted: #A3A8AE;
+      --accent: #ff5c57;
+      --mono: ui-monospace, Menlo, Monaco, "SFMono-Regular";
+      --card: rgba(255,255,255,0.03);
+      --border: rgba(255,255,255,0.06);
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--mono);
+      -webkit-font-smoothing: antialiased;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      margin: 0 0 6px 0;
+      font-size: 16px;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+
+    .card {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-sizing: border-box;
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+      box-sizing: border-box;
+      margin-bottom: 12px;
+    }
+
+    .row {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 14px;
+      text-align: center;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      border: none;
+      cursor:pointer;
+    }
+
+    .btn.accent {
+      background: var(--accent);
+      color: #0A0B0C;
+    }
+
+    .btn.ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
+      white-space: pre-wrap;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .back {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.08);
+      color: var(--ink);
+      border-radius: 6px;
+      font-size: 13px;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      backdrop-filter: blur(6px);
+      z-index: 999;
+    }
+  </style>
+</head>
+
+<body>
+
+<a class="back" href="/modes.html?modeStory=multiple" id="backLink">← modes</a>
+
+<h1>MULTIPLE MODE</h1>
+<div class="hint">
+  Type roles you play. Each role sprouts a branch from your glyph.
+  Shared roles connect across participants — a live network of identities.
+</div>
+
+<div class="card">
+
+  <label for="roleInput">Add role</label>
+  <input id="roleInput" type="text" placeholder="e.g. student, sibling, designer">
+
+  <div class="row">
+    <button id="addRole" class="btn accent">ADD</button>
+    <button id="clearRoles" class="btn ghost">CLR</button>
+  </div>
+
+  <div class="row">
+    <button id="joinBtn" class="btn accent">JOIN</button>
+  </div>
+
+  <div class="meta">
+    participant id: <span id="pid">—</span>
+  </div>
+
+  <div id="status" class="status">not joined</div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function(){
+  const MODE = "multiple";
+  const socket    = io();
+
+  const pidEl     = document.getElementById("pid");
+  const statusEl  = document.getElementById("status");
+  const roleInput = document.getElementById("roleInput");
+  const backLink  = document.getElementById("backLink");
+
+  const addRoleBtn   = document.getElementById("addRole");
+  const clearRolesBtn= document.getElementById("clearRoles");
+  const joinBtn      = document.getElementById("joinBtn");
+
+  let participantId = sessionStorage.getItem("participantId") || null;
+  if (participantId) pidEl.textContent = participantId;
+
+  let joined = false;
+
+  function setStatus(msg){ statusEl.textContent = msg || ""; }
+
+  socket.on("connect", () => {
+    setStatus(joined ? "reconnected — still in multiple mode" : "connected");
+    if (joined && participantId) {
+      socket.emit("change-mode", MODE);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    setStatus("disconnected from server");
+  });
+
+  addRoleBtn.onclick = () => {
+    participantId = sessionStorage.getItem("participantId");
+    if (!participantId) {
+      setStatus("Missing participant id — generate your ID first.");
+      return;
+    }
+    const role = roleInput.value.trim();
+    if (!role) return;
+    socket.emit(MODE + ":add-role", { participantId, role });
+    roleInput.value = "";
+    setStatus(`added role: ${role}`);
+  };
+
+  clearRolesBtn.onclick = () => {
+    if (!participantId) return;
+    socket.emit(MODE + ":clear-roles", { participantId });
+    setStatus("cleared roles");
+  };
+
+  joinBtn.onclick = () => {
+    participantId = sessionStorage.getItem("participantId");
+    if (!participantId) {
+      setStatus("Missing participant id — generate your ID first.");
+      return;
+    }
+    pidEl.textContent = participantId;
+    joined = true;
+    socket.emit("change-mode", MODE);
+    socket.emit(MODE + ":join", { participantId });
+    setStatus("joined — branches and connections will appear on the wall");
+  };
+
+  function leaveSession() {
+    if (!joined || !participantId) return;
+    socket.emit(MODE + ":leave", { participantId });
+    joined = false;
+    setStatus("left multiple mode");
+  }
+
+  backLink.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    try { leaveSession(); } catch(e){}
+    window.location.href = backLink.getAttribute("href");
+  });
+
+  window.addEventListener("beforeunload", () => {
+    try { leaveSession(); } catch(e){}
+  });
+
+})();
+</script>
+
+</body>
+</html>

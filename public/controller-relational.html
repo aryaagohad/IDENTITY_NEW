@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>Relational Controller</title>
+
+  <style>
+    :root {
+      --bg: #0A0B0C;
+      --accent: #ff5c57;
+      --muted: #A3A8AE;
+      --ink: #F6F7F8;
+      --mono: ui-monospace, Menlo, Monaco, "SFMono-Regular";
+    }
+    html,body{
+      height:100%;margin:0;background:var(--bg);color:var(--ink);
+      font-family:var(--mono);padding:18px;box-sizing:border-box;
+      -webkit-font-smoothing:antialiased;
+    }
+    h1{margin:0 0 8px 0;font-size:16px;letter-spacing:0.08em}
+    .hint{color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.4}
+    #video{width:100%;border-radius:12px;background:#000;display:block}
+    .controls{display:flex;gap:10px;margin-top:12px;align-items:center}
+    .btn { padding:10px 14px;border-radius:8px;background:var(--accent);color:#0A0B0C;font-weight:700;border:none;cursor:pointer }
+    .small { font-size:12px;color:var(--muted) }
+    #status{margin-top:10px;color:var(--muted);font-size:13px;white-space:pre-wrap}
+    #backLink{
+      position:fixed;
+      top:16px;
+      right:16px;
+      padding:8px 12px;
+      background:rgba(255,255,255,0.08);
+      color:#F6F7F8;
+      border-radius:6px;
+      font-size:13px;
+      font-family:ui-monospace, Menlo, Monaco;
+      text-decoration:none;
+      border:1px solid rgba(255,255,255,0.06);
+      z-index:999;
+      backdrop-filter:blur(6px);
+    }
+  </style>
+</head>
+
+<body>
+
+  <a href="/modes.html?modeStory=relational" id="backLink">← modes</a>
+
+  <h1>RELATIONAL MODE</h1>
+  <div class="hint">
+    Your front camera tracks your face. Horizontal position = gaze; distance = size.
+    Together, you and others pull the glyphs into and out of relation.
+  </div>
+
+  <video id="video" autoplay playsinline muted></video>
+
+  <div class="controls">
+    <button id="joinBtn" class="btn">JOIN SESSION</button>
+    <div style="flex:1"></div>
+    <div class="small">participant id: <span id="pidDisplay">—</span></div>
+  </div>
+
+  <div id="status">initializing camera…</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+  (function () {
+    const MODE = "relational";
+    const socket = io();
+
+    const video      = document.getElementById('video');
+    const statusEl   = document.getElementById('status');
+    const joinBtn    = document.getElementById('joinBtn');
+    const pidDisplay = document.getElementById('pidDisplay');
+    const backLink   = document.getElementById('backLink');
+
+    let participantId = sessionStorage.getItem('participantId') || null;
+    if (participantId) pidDisplay.textContent = participantId;
+
+    let stream        = null;
+    let joined        = false;
+    let emitInterval  = null;
+
+    function setStatus(t){ statusEl.textContent = t || ""; }
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: false
+        });
+        video.srcObject = stream;
+        setStatus("camera ready — tap JOIN when you're in frame");
+      } catch (err) {
+        console.error("camera error", err);
+        setStatus("camera error: " + (err && err.message ? err.message : err));
+      }
+    }
+
+    startCamera();
+
+    video.addEventListener('loadedmetadata', () => {
+      if (sampleGaze._canvas) {
+        sampleGaze._canvas.width  = video.videoWidth  || video.clientWidth;
+        sampleGaze._canvas.height = video.videoHeight || video.clientHeight;
+      }
+    });
+
+    async function sampleGaze() {
+      const w = video.videoWidth || video.clientWidth;
+      const h = video.videoHeight || video.clientHeight;
+      if (!w || !h) return { gaze: 0.5, proximity: 0.35 };
+
+      if (!sampleGaze._canvas) {
+        sampleGaze._canvas = document.createElement("canvas");
+        sampleGaze._canvas.width = w;
+        sampleGaze._canvas.height = h;
+        sampleGaze._ctx = sampleGaze._canvas.getContext("2d", { willReadFrequently: true });
+      }
+
+      const canvas = sampleGaze._canvas;
+      const ctx    = sampleGaze._ctx;
+
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+
+      try {
+        ctx.drawImage(video, 0, 0, w, h);
+      } catch (e) {
+        return { gaze: 0.5, proximity: 0.35 };
+      }
+
+      const frame = ctx.getImageData(0, 0, w, h).data;
+      let sumX = 0, sumY = 0, count = 0;
+      const step = 4;
+
+      for (let y = 0; y < h; y += step) {
+        for (let x = 0; x < w; x += step) {
+          const i = (y * w + x) * 4;
+          const r = frame[i];
+          const g = frame[i+1];
+          const b = frame[i+2];
+          const brightness = (r + g + b) / 3;
+          if (brightness > 150) {
+            sumX += x;
+            sumY += y;
+            count++;
+          }
+        }
+      }
+
+      if (count < 12) {
+        return { gaze: 0.5, proximity: 0.35 };
+      }
+
+      const cx = sumX / count;
+      const cy = sumY / count;
+
+      const gaze = cx / w;
+      const proximity = 1 - (cy / h);
+
+      return {
+        gaze: Math.max(0, Math.min(1, gaze)),
+        proximity: Math.max(0, Math.min(1, proximity))
+      };
+    }
+
+    async function startEmitting() {
+      if (emitInterval) return;
+      emitInterval = setInterval(async () => {
+        if (!joined || !participantId) return;
+        const { gaze, proximity } = await sampleGaze();
+        const packet = {
+          participantId,
+          gaze,
+          proximity,
+          ts: Date.now()
+        };
+        socket.emit(MODE + ":update", packet);
+      }, 120);
+    }
+
+    function stopEmitting() {
+      if (emitInterval) {
+        clearInterval(emitInterval);
+        emitInterval = null;
+      }
+    }
+
+    joinBtn.addEventListener("click", () => {
+      participantId = sessionStorage.getItem('participantId');
+      if (!participantId) {
+        setStatus("Missing participantId — register first.");
+        return;
+      }
+      pidDisplay.textContent = participantId;
+      joined = true;
+      socket.emit("change-mode", MODE);
+      socket.emit(MODE + ":join", { participantId });
+      setStatus("joined — your gaze & distance are shaping the glyph");
+      startEmitting();
+    });
+
+    socket.on("connect", () => {
+      if (joined && participantId) {
+        socket.emit("change-mode", MODE);
+      }
+    });
+
+    socket.on("disconnect", () => {
+      setStatus("disconnected from server");
+      stopEmitting();
+    });
+
+    setInterval(async () => {
+      if (!joined) return;
+      const s = await sampleGaze();
+      setStatus(
+        `joined — emitting\n` +
+        `gaze: ${s.gaze.toFixed(2)} • proximity: ${s.proximity.toFixed(2)}`
+      );
+    }, 800);
+
+    function leaveSession() {
+      if (!joined || !participantId) return;
+      socket.emit(MODE + ":leave", { participantId });
+      joined = false;
+      setStatus("left relational mode");
+      stopEmitting();
+    }
+
+    backLink.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      try { leaveSession(); } catch(e){}
+      window.location.href = backLink.getAttribute("href");
+    });
+
+    window.addEventListener("beforeunload", () => {
+      try { leaveSession(); } catch(e){}
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+      }
+    });
+
+  })();
+  </script>
+</body>
+</html>

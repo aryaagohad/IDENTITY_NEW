@@ -1,0 +1,79 @@
+/* host.css — grid layout and TE-inspired minimal styling */
+
+:root{
+  --bg: #060708;
+  --panel: #e7eef8;
+  --muted: #99a0ad;
+  --accent: #ff5c57;
+  --card: #0f1113;
+}
+
+html,body{height:100%;margin:0;background:var(--bg);color:var(--panel);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+
+.host-shell{max-width:1400px;margin:18px auto;padding:18px;}
+.host-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.host-brand{font-weight:700;letter-spacing:0.12em;}
+.host-controls{display:flex;gap:8px;align-items:center;}
+
+.host-grid{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 columns as requested */
+  gap: 16px;
+}
+
+/* A single glyph tile */
+.host-tile{
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius:10px;
+  padding:8px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  min-height: 180px;
+  border:1px solid rgba(255,255,255,0.03);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
+
+.host-canvas-wrap{
+  width:100%;
+  aspect-ratio: 1 / 1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:transparent;
+  overflow:hidden;
+  border-radius:8px;
+}
+
+/* p5 canvas will fill the wrapper */
+.host-canvas-wrap canvas{ width:100% !important; height:100% !important; display:block; object-fit:contain; }
+
+/* caption below the glyph */
+.host-caption{
+  margin-top:8px;
+  font-size:13px;
+  color:var(--panel);
+  text-align:center;
+  width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-weight:600;
+}
+
+/* responsive: reduce columns on smaller screens */
+@media (max-width:1100px){
+  .host-grid{ grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width:760px){
+  .host-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width:420px){
+  .host-grid{ grid-template-columns: repeat(1, 1fr); }
+}
+
+/* small button style compatibility */
+.btn{ background:rgba(255,255,255,0.04); color:var(--panel); border:none; padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:700; }
+.small{ font-size:12px; color:var(--muted); }
+.host-foot{ margin-top:12px; color:var(--muted); font-size:12px; text-align:center; }

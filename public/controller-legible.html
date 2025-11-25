@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Legible Controller — TE Calc</title>
+
+<style>
+  :root {
+    --bg: #0A0B0C;
+    --ink: #F6F7F8;
+    --muted: #A3A8AE;
+    --accent: #ffb400;
+    --mono: ui-monospace, Menlo, Monaco, "SF Mono", monospace;
+  }
+
+  html, body {
+    margin:0;
+    padding:0;
+    height:100%;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--mono);
+    -webkit-font-smoothing: antialiased;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  #backLink {
+    margin-top:16px;
+    align-self:flex-end;
+    margin-right:16px;
+    text-decoration:none;
+    font-size:13px;
+    color:var(--muted);
+    border:1px solid rgba(255,255,255,0.06);
+    padding:6px 12px;
+    border-radius:8px;
+  }
+
+  .calc-shell {
+    margin-top:12px;
+    width:92%;
+    max-width:400px;
+    background:#111315;
+    border-radius:18px;
+    padding:22px;
+    box-shadow:0 0 0 2px #1a1d1e inset;
+  }
+
+  .top-bar {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
+  }
+
+  .join-btn {
+    padding:10px 14px;
+    background:var(--accent);
+    color:#0A0B0C;
+    border-radius:10px;
+    font-weight:700;
+    font-size:13px;
+    border:1px solid #e0a000;
+    margin-bottom:16px;
+    text-align:center;
+    user-select:none;
+    cursor:pointer;
+  }
+  .join-btn:active {
+    background:#e0a000;
+    transform:translateY(1px);
+  }
+
+  .screen {
+    background:#181a1c;
+    border-radius:10px;
+    padding:16px;
+    min-height:64px;
+    box-shadow:0 0 0 2px #202325 inset;
+    overflow:hidden;
+  }
+
+  .screen-text {
+    font-size:13px;
+    color:var(--muted);
+    line-height:1.4;
+    white-space:pre-wrap;
+  }
+
+  .btn-grid {
+    margin-top:20px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:12px;
+  }
+
+  .calc-btn {
+    padding:14px 10px;
+    background:#1c1f21;
+    border-radius:12px;
+    text-align:center;
+    font-size:12px;
+    border:1px solid #2a2d2f;
+    color:var(--ink);
+    letter-spacing:0.02em;
+    user-select:none;
+    transition:background 0.12s, transform 0.12s;
+  }
+
+  .calc-btn:active {
+    background:#242729;
+    transform:translateY(1px);
+  }
+
+  .accent { 
+    background:var(--accent) !important; 
+    color:#0A0B0C !important; 
+    border-color:#e0a000 !important;
+  }
+
+  .status {
+    margin-top:10px;
+    font-size:11px;
+    color:var(--muted);
+  }
+</style>
+</head>
+
+<body>
+
+<a href="/modes.html?modeStory=legible" id="backLink">← modes</a>
+
+<div class="calc-shell">
+
+  <div class="top-bar">
+    <div style="font-size:14px; color:var(--muted);">
+      LEGIBLE MODE
+    </div>
+    <div style="font-size:12px; color:var(--muted);">
+      id: <span id="pid">—</span>
+    </div>
+  </div>
+
+  <div id="joinBtn" class="join-btn">JOIN</div>
+
+  <div class="screen">
+    <div class="screen-text" id="screenText">Press JOIN to enter the system. Once inside, the system decides how visible you are.</div>
+  </div>
+
+  <div class="btn-grid">
+    <div class="calc-btn accent" id="btnRegister">RE-REGISTER</div>
+    <div class="calc-btn" id="btnUpdate">UPDATE DATA</div>
+    <div class="calc-btn" id="btnSubmit">SUBMIT REQUEST</div>
+
+    <div class="calc-btn">VERIFY</div>
+    <div class="calc-btn">CHECK STATUS</div>
+    <div class="calc-btn">RETRY</div>
+
+    <div class="calc-btn">RECOVER</div>
+    <div class="calc-btn">REFRESH</div>
+    <div class="calc-btn">SEND TICKET</div>
+  </div>
+
+  <div class="status" id="status"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function(){
+  const MODE = "legible";
+  const socket = io();
+
+  const screenText = document.getElementById("screenText");
+  const pidEl      = document.getElementById("pid");
+  const joinBtn    = document.getElementById("joinBtn");
+  const statusEl   = document.getElementById("status");
+  const backLink   = document.getElementById("backLink");
+
+  const btnRegister = document.getElementById("btnRegister");
+  const btnUpdate   = document.getElementById("btnUpdate");
+  const btnSubmit   = document.getElementById("btnSubmit");
+
+  let participantId = sessionStorage.getItem("participantId") || null;
+  if (participantId) pidEl.textContent = participantId;
+
+  let joined = false;
+
+  function setStatus(t){ statusEl.textContent = t || ""; }
+
+  socket.on("connect", () => {
+    setStatus(joined ? "reconnected — still in legible mode" : "connected");
+    if (joined && participantId) {
+      socket.emit("change-mode", MODE);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    setStatus("disconnected from server");
+  });
+
+  joinBtn.onclick = () => {
+    participantId = sessionStorage.getItem("participantId");
+    if (!participantId) {
+      screenText.textContent = "You must generate your ID first.";
+      setStatus("no participant id found");
+      return;
+    }
+    pidEl.textContent = participantId;
+    joined = true;
+
+    socket.emit("change-mode", MODE);
+    socket.emit(MODE + ":join", { participantId });
+
+    screenText.textContent = "You are now inside the system.\nWatch how visible your glyph is allowed to be.";
+    setStatus("joined — the system will now alter visibility on its own");
+  };
+
+  function fakeAction(label) {
+    if (!participantId || !joined) return;
+    socket.emit(MODE + ":update", { participantId, intent: label });
+    screenText.textContent = label + "… (processing)";
+  }
+
+  btnRegister.onclick = () => fakeAction("Re-registering");
+  btnUpdate.onclick   = () => fakeAction("Updating");
+  btnSubmit.onclick   = () => fakeAction("Submitting");
+
+  socket.on(MODE + ":update", (pkt)=>{
+    if (!pkt || !pkt.intent) return;
+    screenText.textContent = `${pkt.intent}… still pending`;
+  });
+
+  function leaveSession() {
+    if (!joined || !participantId) return;
+    socket.emit(MODE + ":leave", { participantId });
+    joined = false;
+    setStatus("left legible mode");
+  }
+
+  backLink.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    try { leaveSession(); } catch(e){}
+    window.location.href = backLink.getAttribute("href");
+  });
+
+  window.addEventListener("beforeunload", () => {
+    try { leaveSession(); } catch(e){}
+  });
+})();
+</script>
+
+</body>
+</html>

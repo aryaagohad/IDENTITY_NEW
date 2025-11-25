@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>Interoperable Controller</title>
+  <style>
+    :root{--bg:#0A0B0C;--ink:#F6F7F8;--muted:#A3A8AE;--accent:#6bd3ff;--mono:ui-monospace,Menlo,Monaco;}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);padding:18px;box-sizing:border-box;}
+    h1{margin:0 0 8px 0;font-size:16px}
+    .hint{color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.4}
+    .controls{display:flex;gap:10px;margin-top:12px;align-items:center}
+    .btn{padding:10px 14px;border-radius:8px;background:var(--accent);color:#0A0B0C;border:none;font-weight:700;cursor:pointer}
+    .btn.ghost{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.04)}
+    .small{font-size:12px;color:var(--muted)}
+    #meter{height:8px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;margin-top:10px}
+    #meterFill{height:100%;width:1%;background:linear-gradient(90deg,#9be7ff,#6bd3ff);transition:width .06s linear}
+    #pitch{margin-top:8px;color:var(--muted);font-size:13px}
+    #status{margin-top:10px;color:var(--muted);font-size:12px;white-space:pre-wrap}
+    #backLink{
+      position:fixed;
+      top:16px;
+      right:16px;
+      padding:8px 12px;
+      background:rgba(255,255,255,0.04);
+      color:#F6F7F8;
+      border-radius:6px;
+      font-size:13px;
+      font-family:ui-monospace, Menlo, Monaco;
+      text-decoration:none;
+      border:1px solid rgba(255,255,255,0.06);
+      z-index:999;
+      backdrop-filter:blur(6px);
+    }
+  </style>
+</head>
+<body>
+
+  <a href="/modes.html?modeStory=interoperable" id="backLink">← modes</a>
+
+  <h1>INTEROPERABLE MODE</h1>
+  <div class="hint">
+    Speak into your phone. Your voice mutates your glyph — intensity stretches it, pitch twists it.
+    Tap JOIN to start sending audio to the wall.
+  </div>
+
+  <div class="controls">
+    <button id="joinBtn" class="btn">JOIN</button>
+    <div style="flex:1"></div>
+    <div class="small">participant id: <span id="pid">—</span></div>
+  </div>
+
+  <div id="meter"><div id="meterFill"></div></div>
+  <div id="pitch">pitch: — Hz • intensity: —</div>
+  <div id="status"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+  (function () {
+    const MODE = "interoperable";
+    const socket = io();
+
+    const joinBtn   = document.getElementById('joinBtn');
+    const pidDisplay= document.getElementById('pid');
+    const meterFill = document.getElementById('meterFill');
+    const pitchEl   = document.getElementById('pitch');
+    const statusEl  = document.getElementById('status');
+    const backLink  = document.getElementById('backLink');
+
+    let participantId = sessionStorage.getItem('participantId') || null;
+    if (participantId) pidDisplay.textContent = participantId;
+
+    let audioCtx = null;
+    let analyser = null;
+    let sourceNode = null;
+    let stream = null;
+    let emitting = false;
+    let joined = false;
+    let lastSent = 0;
+    let samplerInterval = null;
+
+    function setStatus(msg){ statusEl.textContent = msg || ""; }
+
+    function computeRMS(timeData) {
+      let sum = 0;
+      for (let i=0;i<timeData.length;i++) {
+        const v = (timeData[i] - 128) / 128;
+        sum += v*v;
+      }
+      return Math.sqrt(sum / timeData.length);
+    }
+
+    function estimatePitch(freqData, sampleRate) {
+      let maxIdx = 0;
+      let maxVal = -Infinity;
+      for (let i = 1; i < freqData.length; i++) {
+        if (freqData[i] > maxVal) { maxVal = freqData[i]; maxIdx = i; }
+      }
+      if (maxVal < 16) return 0;
+      const nyquist = sampleRate / 2;
+      const freq = maxIdx * (nyquist / freqData.length);
+      return Math.round(freq);
+    }
+
+    async function startAudio() {
+      if (audioCtx) return true;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.7;
+        sourceNode = audioCtx.createMediaStreamSource(stream);
+        sourceNode.connect(analyser);
+        setStatus("mic active — speaking will move your glyph");
+        return true;
+      } catch (err) {
+        console.error("mic error", err);
+        alert("Microphone access required for this mode.");
+        setStatus("microphone access denied");
+        return false;
+      }
+    }
+
+    function sampleAndEmit() {
+      if (!analyser || !emitting || !joined || !participantId) return;
+
+      const now = Date.now();
+      if (now - lastSent < 60) return; // ~16Hz max
+      lastSent = now;
+
+      const timeData = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(timeData);
+      const rms = computeRMS(timeData);
+
+      const freqData = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(freqData);
+      const pitchHz = estimatePitch(freqData, audioCtx.sampleRate || 44100);
+
+      const intensity = Math.min(1, rms * 2.2);
+
+      meterFill.style.width = Math.round(intensity * 100) + "%";
+      pitchEl.textContent = `pitch: ${pitchHz || "—"} Hz • intensity: ${intensity.toFixed(2)}`;
+
+      const packet = {
+        participantId,
+        intensity: Math.round(intensity * 100) / 100,
+        pitch: pitchHz,
+        ts: now
+      };
+      socket.emit(MODE + ":update", packet);
+    }
+
+    function beginSampling() {
+      if (samplerInterval) return;
+      samplerInterval = setInterval(sampleAndEmit, 50);
+    }
+
+    function stopSampling() {
+      if (samplerInterval) {
+        clearInterval(samplerInterval);
+        samplerInterval = null;
+      }
+      meterFill.style.width = "1%";
+      pitchEl.textContent = "pitch: — Hz • intensity: —";
+    }
+
+    function leaveSession() {
+      if (!joined || !participantId) return;
+      socket.emit(MODE + ":leave", { participantId });
+      joined = false;
+      emitting = false;
+      stopSampling();
+      setStatus("left interoperable mode");
+    }
+
+    joinBtn.addEventListener("click", async () => {
+      participantId = sessionStorage.getItem('participantId');
+      if (!participantId) {
+        alert("Please register / create an ID first.");
+        setStatus("no participant id — generate your ID first");
+        return;
+      }
+      pidDisplay.textContent = participantId;
+
+      const ok = await startAudio();
+      if (!ok) return;
+
+      joined = true;
+      emitting = true;
+      socket.emit("change-mode", MODE);
+      socket.emit(MODE + ":join", { participantId });
+      setStatus("joined — your voice is now driving the glyph");
+      beginSampling();
+    });
+
+    backLink.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      try { leaveSession(); } catch(e){}
+      window.location.href = backLink.getAttribute("href");
+    });
+
+    window.addEventListener("beforeunload", () => {
+      try { leaveSession(); } catch(e){}
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+      }
+      if (audioCtx) {
+        audioCtx.close();
+      }
+    });
+
+    socket.on('connect', () => {
+      setStatus(joined ? "reconnected — still in interoperable mode" : "connected");
+    });
+    socket.on('disconnect', () => {
+      setStatus("disconnected from server");
+    });
+  })();
+  </script>
+</body>
+</html>
